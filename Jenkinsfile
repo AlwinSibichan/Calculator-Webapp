@@ -29,15 +29,28 @@ pipeline {
             }
         }
         
+        stage('Setup Environment') {
+            steps {
+                script {
+                    // Add jenkins user to docker group
+                    sh '''
+                        if ! grep -q "^docker:" /etc/group; then
+                            sudo groupadd docker
+                        fi
+                        sudo gpasswd -a jenkins docker
+                        sudo service docker restart
+                        newgrp docker
+                    '''
+                }
+            }
+        }
+        
         stage('Build Application') {
             steps {
                 script {
                     // Build Docker image with GitHub commit hash tag
                     def commitHash = sh(script: 'git rev-parse --short HEAD', returnStdout: true).trim()
                     sh """
-                        # Ensure Docker commands can be run
-                        sudo chmod 666 /var/run/docker.sock
-                        
                         # Build and tag Docker image
                         docker build -t ${DOCKER_IMAGE}:${commitHash} .
                         docker tag ${DOCKER_IMAGE}:${commitHash} ${DOCKER_IMAGE}:latest
